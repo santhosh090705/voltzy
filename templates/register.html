@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register - EV Digital Twin Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e5e7eb;
+      position: relative;
+      overflow: hidden;
+      padding: 20px;
+    }
+
+    /* Animated background gradient circles */
+    .bg-decoration {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      animation: float 20s ease-in-out infinite;
+    }
+
+    .circle-1 {
+      width: 400px;
+      height: 400px;
+      background: #38bdf8;
+      top: -100px;
+      left: -100px;
+      animation-delay: 0s;
+    }
+
+    .circle-2 {
+      width: 300px;
+      height: 300px;
+      background: #0ea5e9;
+      bottom: -50px;
+      right: -50px;
+      animation-delay: 7s;
+    }
+
+    .circle-3 {
+      width: 250px;
+      height: 250px;
+      background: #06b6d4;
+      top: 50%;
+      left: 50%;
+      animation-delay: 3.5s;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translate(0, 0);
+      }
+      50% {
+        transform: translate(30px, -30px);
+      }
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .register-box {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 20px;
+      padding: 50px 40px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3), 0 0 1px rgba(148, 163, 184, 0.1);
+      animation: slideUp 0.6s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      border-radius: 15px;
+      margin-bottom: 15px;
+      font-size: 32px;
+      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      font-weight: 400;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-row .form-group {
+      margin-bottom: 0;
+    }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+      transition: color 0.3s ease;
+    }
+
+    .form-group:focus-within .label {
+      color: #38bdf8;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.5);
+      color: #f1f5f9;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+
+    input::placeholder {
+      color: #64748b;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #38bdf8;
+      background: rgba(15, 23, 42, 0.8);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+    }
+
+    input:hover,
+    select:hover {
+      border-color: rgba(148, 163, 184, 0.3);
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+      color: #020617;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 15px;
+      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: left 0.5s ease;
+    }
+
+    .submit-btn:hover::before {
+      left: 100%;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(56, 189, 248, 0.4);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 25px 0;
+      color: #475569;
+      font-size: 12px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(148, 163, 184, 0.15);
+    }
+
+    .divider span {
+      margin: 0 12px;
+    }
+
+    .login-link {
+      text-align: center;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .login-link a {
+      color: #38bdf8;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .login-link a::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #38bdf8;
+      transition: width 0.3s ease;
+    }
+
+    .login-link a:hover::after {
+      width: 100%;
+    }
+
+    .footer-text {
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 18px;
+      line-height: 1.5;
+    }
+
+    .info-box {
+      background: rgba(56, 189, 248, 0.05);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .register-box {
+        padding: 35px 24px;
+      }
+
+      .title {
+        font-size: 24px;
+      }
+
+      .logo {
+        width: 50px;
+        height: 50px;
+        font-size: 28px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row .form-group {
+        margin-bottom: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated background -->
+  <div class="bg-decoration circle-1"></div>
+  <div class="bg-decoration circle-2"></div>
+  <div class="bg-decoration circle-3"></div>
+
+  <!-- Register container -->
+  <div class="container">
+    <div class="register-box">
+      <div class="header">
+        <div class="logo">⚡</div>
+        <h1 class="title">Create Account</h1>
+        <p class="subtitle">Join EV Twin platform</p>
+      </div>
+
+      <div class="info-box">
+        💡 Choose your role: <strong>User</strong> for vehicle monitoring or <strong>Company</strong> to manage fleet vehicles.
+      </div>
+
+      <form method="post" action="/register">
+        <div class="form-group">
+          <label class="label">Username</label>
+          <input
+            type="text"
+            name="username"
+            placeholder="Choose a username"
+            required
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="label">Password</label>
+            <input
+              type="password"
+              name="password"
+              placeholder="Strong password"
+              required
+              autocomplete="new-password"
+            />
+          </div>
+          <div class="form-group">
+            <label class="label">Role</label>
+            <select name="role" required>
+              <option value="user">User (Vehicle)</option>
+              <option value="company">Company (Fleet)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="label">Company Name</label>
+          <input
+            type="text"
+            name="company"
+            placeholder="Your company name"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="label">Battery ID (for users)</label>
+          <input
+            type="text"
+            name="battery_id"
+            placeholder="e.g., EV48V_SIM_01"
+          />
+        </div>
+
+        <button type="submit" class="submit-btn">Create Account</button>
+      </form>
+
+      <div class="divider">
+        <span>Already registered?</span>
+      </div>
+
+      <div class="login-link">
+        Have an account? <a href="/login">Sign in here</a>
+      </div>
+
+      <div class="footer-text">
+        🔒 Your data is encrypted and secure<br />
+        ⚡ Instant access to battery monitoring
+      </div>
+    </div>
+  </div>
+</body>
+</html>

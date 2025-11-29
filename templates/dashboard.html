@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>48V EV Battery Digital Twin – Live Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Chart.js CDN for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg: #020617;
+            --card: #020617;
+            --card-alt: #020817;
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.15);
+            --danger: #f97373;
+            --warning: #facc15;
+            --success: #22c55e;
+            --text: #e5e7eb;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #0f172a, #020617 60%);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 12px 32px;
+        }
+
+        .shell {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .title-block {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .title-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            color: var(--text-muted);
+        }
+
+        .title-pill span.icon {
+            font-size: 14px;
+        }
+
+        .maps-button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s ease;
+        }
+
+        .maps-button:hover {
+            background: rgba(56, 189, 248, 0.8);
+        }
+
+        .maps-button:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        h1 {
+            font-size: 26px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(15, 23, 42, 0.7);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--accent);
+        }
+
+        .status-block {
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #last-updated {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        #range-status {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 18px;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 700px) {
+            .cards-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        .card {
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.8));
+            border-radius: 16px;
+            padding: 12px 12px 10px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 55%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            margin-bottom: 4px;
+        }
+
+        .value-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .unit {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .chip {
+            margin-top: 6px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            color: var(--text-muted);
+        }
+
+        .chip-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+        }
+
+        .chip-dot.good {
+            background: var(--success);
+        }
+        .chip-dot.warn {
+            background: var(--warning);
+        }
+        .chip-dot.bad {
+            background: var(--danger);
+        }
+
+        .range-card {
+            grid-column: span 4;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .range-bar-shell {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            overflow: hidden;
+        }
+
+        .range-bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #22c55e, #facc15, #f97373);
+            transition: width 0.4s ease;
+        }
+
+        .range-legend {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Animated DTE Gauge Meter */
+        .gauge-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+            border-radius: 16px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 16px;
+            grid-column: span 4;
+        }
+
+        .gauge {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+
+        .gauge-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 10px 30px rgba(56, 189, 248, 0.2));
+        }
+
+        .gauge-needle {
+            transform-origin: 140px 140px;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .gauge-center-dot {
+            fill: rgba(56, 189, 248, 0.3);
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+        }
+
+        .gauge-label {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            width: 100%;
+        }
+
+        .gauge-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #38bdf8;
+            text-shadow: 0 2px 10px rgba(56, 189, 248, 0.3);
+            line-height: 1;
+        }
+
+        .gauge-unit {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .gauge-status {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 12px;
+            color: #cbd5e1;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .charts {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .chart-card {
+            background: rgba(15, 23, 42, 0.96);
+            border-radius: 16px;
+            padding: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .chart-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .chart-title span {
+            font-size: 11px;
+        }
+    </style>
+    <style>
+        /* Intro overlay styles */
+        .intro-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 30% 20%, rgba(56,189,248,0.12), rgba(2,6,23,0.95));
+            z-index: 9999;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .intro-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+            border: 1px solid rgba(148,163,184,0.12);
+            padding: 26px 28px;
+            border-radius: 12px;
+            text-align: center;
+            color: var(--text);
+            box-shadow: 0 18px 40px rgba(2,6,23,0.6);
+            transform-origin: center;
+            animation: introPop 520ms cubic-bezier(.2,1,.22,1);
+        }
+
+        .intro-battery {
+            font-size: 46px;
+            margin-bottom: 8px;
+            display: inline-block;
+            animation: floatUp 1200ms ease-in-out infinite alternate;
+        }
+
+        .intro-title {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 0.02em;
+        }
+
+        .intro-sub {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        @keyframes introPop {
+            from { opacity: 0; transform: translateY(10px) scale(.98); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes floatUp {
+            from { transform: translateY(0); }
+            to { transform: translateY(-8px); }
+        }
+
+        .intro-overlay.intro-hidden {
+            opacity: 0;
+            transform: translateY(-8px);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<!-- Intro overlay animation: appears on page load and auto-dismisses or can be clicked to skip -->
+<div id="intro-overlay" class="intro-overlay" aria-hidden="false">
+    <div class="intro-card">
+        <div class="intro-battery" aria-hidden="true">🔋</div>
+        <h2 class="intro-title">EV Digital Twin</h2>
+        <div class="intro-sub">Real-time battery dashboard • Live demo</div>
+    </div>
+</div>
+<div class="shell">
+    <header>
+        <div class="title-block">
+            <div class="title-pill">
+                <span class="icon">🧠</span>
+                DIGITAL TWIN · 48V BATTERY
+            </div>
+            <h1>
+                Cloud-Based DTE & SoH Estimator
+            </h1>
+            <div class="subtitle">
+                Real-time digital twin using simulated IoT battery data · Designed to reduce EV range anxiety.
+            </div>
+            <div class="badge-row">
+                <div class="badge">
+                    <span class="badge-dot"></span> MATLAB/Simulink-ready architecture
+                </div>
+                <div class="badge">
+                    ☁ Cloud-offloaded computation
+                </div>
+                <div class="badge">
+                    🔌 48V Lithium-ion pack (simulated)
+                </div>
+            </div>
+        </div>
+
+        <div class="status-block">
+            <button id="mode-toggle" class="maps-button">
+                <span id="mode-icon">🚗</span> Driving Mode
+            </button>
+            <button id="maps-button" class="maps-button" disabled>
+                <span>🗺️</span> Find EV Stations
+            </button>
+            <div id="last-updated">Waiting for live data...</div>
+            <div id="range-status">Range status: --</div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Left: Cards -->
+        <section>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="label">Pack Voltage</div>
+                    <div class="value-row">
+                        <div class="value" id="voltage">--</div>
+                        <div class="unit">V</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot good"></span>
+                        Nominal: 48V system
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Pack Current</div>
+                    <div class="value-row">
+                        <div class="value" id="current">--</div>
+                        <div class="unit">A</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot"></span>
+                        Discharge profile
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="value-row">
+                        <div class="value" id="temperature">--</div>
+                        <div class="unit">°C</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot warn"></span>
+                        Thermal health indicator
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">State of Charge</div>
+                    <div class="value-row">
+                        <div class="value" id="soc">--</div>
+                        <div class="unit">%</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot good"></span>
+                        Remaining charge
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">State of Health</div>
+                    <div class="value-row">
+                        <div class="value" id="soh">--</div>
+                        <div class="unit">%</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot"></span>
+                        Aging & degradation
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Remaining Energy</div>
+                    <div class="value-row">
+                        <div class="value" id="energy">--</div>
+                        <div class="unit">kWh</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot good"></span>
+                        Cloud-side estimation
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Speed</div>
+                    <div class="value-row">
+                        <div class="value" id="speed">--</div>
+                        <div class="unit">km/h</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot"></span>
+                        Current speed
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Distance Travelled</div>
+                    <div class="value-row">
+                        <div class="value" id="distance">--</div>
+                        <div class="unit">km</div>
+                    </div>
+                    <div class="chip">
+                        <span class="chip-dot"></span>
+                        Total travelled
+                    </div>
+                </div>
+
+                <div class="card range-card">
+                    <div class="label">Distance to Empty</div>
+                    <div class="value-row">
+                        <div class="value" id="dte">--</div>
+                        <div class="unit">km</div>
+                    </div>
+                    <div class="range-bar-shell">
+                        <div class="range-bar-fill" id="dte-bar"></div>
+                    </div>
+                    <div class="range-legend">
+                        <span>0 km</span>
+                        <span>Medium range</span>
+                        <span>Target: 120+ km</span>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+        <!-- Right: Charts -->
+        <section class="charts">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <span>Voltage Trend</span>
+                    <span id="voltage-meta">--</span>
+                </div>
+                <canvas id="voltageChart" height="130"></canvas>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <span>DTE Trend</span>
+                    <span id="dte-meta">--</span>
+                </div>
+                <canvas id="dteChart" height="130"></canvas>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    let voltageChart, dteChart;
+    let beepIntervalId = null;  // Track beep interval for continuous beeping
+    const maxPoints = 60;
+    const timestamps = [];
+    const voltageData = [];
+    const dteData = [];
+
+    
+
+    // Audio context and beep settings (mobile-friendly, louder)
+    let audioContext = null;
+    const beepSettings = {
+        frequency: 950,    // Hz
+        duration: 0.25,    // seconds per beep
+        repeats: 2,        // number of beeps in a pattern
+        interval: 0.12,    // seconds between beeps
+        gain: 0.9          // amplitude (0.0 - 1.0)
+    };
+
+    // Ensure audio context is created/resumed on first user interaction (for mobile autoplay rules)
+    function ensureAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const resumeHandler = () => {
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().catch(() => {});
+                }
+                window.removeEventListener('touchstart', resumeHandler);
+                window.removeEventListener('click', resumeHandler);
+            };
+            window.addEventListener('touchstart', resumeHandler, { passive: true });
+            window.addEventListener('click', resumeHandler);
+        }
+    }
+
+    // Function to play a single beep pattern
+    function playBeepPattern() {
+        try {
+            ensureAudioContext();
+            if (!audioContext) return;
+
+            const startBase = audioContext.currentTime;
+
+            for (let i = 0; i < beepSettings.repeats; i++) {
+                const start = startBase + i * (beepSettings.duration + beepSettings.interval);
+                const stop = start + beepSettings.duration;
+
+                const osc = audioContext.createOscillator();
+                const g = audioContext.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.value = beepSettings.frequency;
+
+                // Envelope: quick attack, sustain, then quick decay
+                g.gain.setValueAtTime(0.0001, start);
+                g.gain.linearRampToValueAtTime(beepSettings.gain, start + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.001, stop);
+
+                osc.connect(g);
+                g.connect(audioContext.destination);
+
+                osc.start(start);
+                osc.stop(stop + 0.02);
+            }
+        } catch (e) {
+            console.error('Failed to play beep:', e);
+        }
+    }
+
+    // Start continuous beeping
+    function startContinuousBeep() {
+        if (beepIntervalId === null) {
+            playBeepPattern();  // Play immediately
+            beepIntervalId = setInterval(playBeepPattern, 2000);  // Repeat every 2 seconds
+        }
+    }
+
+    // Stop continuous beeping
+    function stopContinuousBeep() {
+        if (beepIntervalId !== null) {
+            clearInterval(beepIntervalId);
+            beepIntervalId = null;
+        }
+    }
+
+    
+
+    function initCharts() {
+        const voltageCtx = document.getElementById('voltageChart').getContext('2d');
+        const dteCtx = document.getElementById('dteChart').getContext('2d');
+
+        voltageChart = new Chart(voltageCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'Voltage (V)',
+                    data: voltageData,
+                    tension: 0.3,
+                    borderWidth: 1.8,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { display: false },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: '#9ca3af', font: { size: 10 } },
+                        grid: { color: 'rgba(55, 65, 81, 0.6)' }
+                    }
+                }
+            }
+        });
+
+        dteChart = new Chart(dteCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'DTE (km)',
+                    data: dteData,
+                    tension: 0.3,
+                    borderWidth: 1.8,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { display: false },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: '#9ca3af', font: { size: 10 } },
+                        grid: { color: 'rgba(55, 65, 81, 0.6)' }
+                    }
+                }
+            }
+        });
+    }
+
+    async function fetchLatest() {
+        try {
+            const res = await fetch('/api/latest');
+            const data = await res.json();
+
+            if (!data || typeof data.voltage_V === 'undefined') {
+                document.getElementById('last-updated').innerText = "Waiting for live data...";
+                return;
+            }
+
+            // Update text values
+            document.getElementById('voltage').innerText = Number(data.voltage_V).toFixed(2);
+            document.getElementById('current').innerText = data.current_A;
+            document.getElementById('temperature').innerText = data.temperature_C;
+            document.getElementById('soc').innerText = data.soc_percent;
+            document.getElementById('soh').innerText = data.soh_percent;
+            document.getElementById('energy').innerText = data.remaining_energy_kwh;
+            document.getElementById('speed').innerText = data.speed_kmph;
+            document.getElementById('distance').innerText = data.distance_travelled_km;
+            document.getElementById('dte').innerText = data.dte_km;
+
+            // Status text
+            const rangeStatusEl = document.getElementById('range-status');
+            const dte = data.dte_km || 0;
+
+            if (dte <= 2) {
+                rangeStatusEl.innerText = "🚨 CRITICAL – DTE < 2km – Charge immediately!";
+                rangeStatusEl.style.color = "#f97373";
+                // Start continuous beeping
+                startContinuousBeep();
+            } else if (dte <= 10) {
+                rangeStatusEl.innerText = "⚠ Low range – please charge soon";
+                rangeStatusEl.style.color = "#f97373";
+                // Stop continuous beeping when DTE goes above 2km
+                stopContinuousBeep();
+            } else if (dte <= 30) {
+                rangeStatusEl.innerText = "⚠ Medium range – plan charging";
+                rangeStatusEl.style.color = "#facc15";
+                // Stop continuous beeping
+                stopContinuousBeep();
+            } else {
+                rangeStatusEl.innerText = "✅ Good range – driver is comfortable";
+                rangeStatusEl.style.color = "#22c55e";
+                // Stop continuous beeping
+                stopContinuousBeep();
+            }
+
+            // Range bar (assume 0–120km scale)
+            const bar = document.getElementById('dte-bar');
+            const percentage = Math.max(0, Math.min(100, (dte / 120) * 100));
+            bar.style.width = percentage + "%";
+
+            // Last updated text
+            if (data.server_timestamp) {
+                document.getElementById('last-updated').innerText =
+                    "Live · Last update: " + data.server_timestamp;
+            } else {
+                document.getElementById('last-updated').innerText = "Live · Updating…";
+            }
+
+            // Update charts
+            const nowLabel = new Date().toLocaleTimeString();
+            timestamps.push(nowLabel);
+            voltageData.push(data.voltage_V);
+            dteData.push(dte);
+
+            if (timestamps.length > maxPoints) {
+                timestamps.shift();
+                voltageData.shift();
+                dteData.shift();
+            }
+
+            voltageChart.update();
+            dteChart.update();
+
+            document.getElementById('voltage-meta').innerText = Number(data.voltage_V).toFixed(2) + " V";
+            document.getElementById('dte-meta').innerText = data.dte_km + " km";
+
+            // Enable maps button always
+            const mapsButton = document.getElementById('maps-button');
+            mapsButton.disabled = false;
+            mapsButton.onclick = () => {
+                if (data.latitude && data.longitude) {
+                    const lat = data.latitude;
+                    const lng = data.longitude;
+                    const url = `https://www.google.com/maps/search/EV+charging+stations/@${lat},${lng},15z`;
+                    window.open(url, '_blank');
+                } else {
+                    // Default to a general search if no location data
+                    const url = `https://www.google.com/maps/search/EV+charging+stations`;
+                    window.open(url, '_blank');
+                }
+            };
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('last-updated').innerText = "Error fetching data";
+        }
+    }
+
+    async function fetchMode() {
+        try {
+            const res = await fetch('/api/mode');
+            const data = await res.json();
+            updateModeButton(data.mode);
+        } catch (e) {
+            console.error('Error fetching mode:', e);
+        }
+    }
+
+    async function toggleMode() {
+        const button = document.getElementById('mode-toggle');
+        const currentMode = button.innerText.includes('Driving') ? 'driving' : 'charging';
+        const newMode = currentMode === 'driving' ? 'charging' : 'driving';
+
+        try {
+            const res = await fetch('/api/mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: newMode })
+            });
+            if (res.ok) {
+                updateModeButton(newMode);
+            } else {
+                console.error('Failed to toggle mode');
+            }
+        } catch (e) {
+            console.error('Error toggling mode:', e);
+        }
+    }
+
+    function updateModeButton(mode) {
+        const button = document.getElementById('mode-toggle');
+        const icon = document.getElementById('mode-icon');
+        if (mode === 'charging') {
+            icon.innerText = '🔌';
+            button.innerHTML = '<span id="mode-icon">🔌</span> Charging Mode';
+        } else {
+            icon.innerText = '🚗';
+            button.innerHTML = '<span id="mode-icon">🚗</span> Driving Mode';
+        }
+    }
+
+    // Intro overlay control: auto-dismiss after a short delay or on click
+    function hideIntroOverlay() {
+        const el = document.getElementById('intro-overlay');
+        if (!el) return;
+        el.classList.add('intro-hidden');
+        // remove from DOM after transition
+        setTimeout(() => {
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        }, 700);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const overlay = document.getElementById('intro-overlay');
+        if (overlay) {
+            // Dismiss automatically after 2.2s
+            setTimeout(hideIntroOverlay, 2200);
+            // Allow user to skip by clicking
+            overlay.addEventListener('click', hideIntroOverlay, { once: true });
+        }
+    });
+
+    initCharts();
+    fetchMode();  // Fetch initial mode
+    document.getElementById('mode-toggle').addEventListener('click', toggleMode);
+    setInterval(fetchLatest, 2000);  // Increased to 2 seconds for better performance
+    fetchLatest();
+</script>
+</body>
+</html>
