@@ -4,7 +4,9 @@ import requests
 import msvcrt
 from datetime import datetime, timezone
 
-SERVER_URL = "http://127.0.0.1:5000/api/battery-data"
+# Post to live Render deployment (or localhost for local dev)
+SERVER_URL = "https://voltzy.onrender.com/api/battery-data"  # Live Render endpoint
+# SERVER_URL = "http://127.0.0.1:5000/api/battery-data"       # Local dev (uncomment for localhost)
 
 # Initial simulated battery state
 voltage = 52.0        # V (full)
