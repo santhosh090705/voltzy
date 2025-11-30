@@ -5,6 +5,15 @@ from flask import Flask, request, jsonify, render_template, session, redirect
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
 
+# MATLAB integration (optional; falls back to Python if unavailable)
+try:
+    from matlab_integration import estimate_with_matlab
+    MATLAB_AVAILABLE = True
+except ImportError:
+    MATLAB_AVAILABLE = False
+    logger_init = logging.getLogger(__name__)
+    logger_init.info("[APP] MATLAB integration not available; using Python-only digital twin.")
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me')
 
@@ -46,14 +55,54 @@ def get_batteries_for_company(company):
             ids.add(u.get('battery_id'))
     return list(ids)
 
-# ----------------- 🧠 Digital Twin Logic -----------------
+# ----------------- 🧠 Digital Twin Logic (MATLAB + Python Fallback) -----------------
 def estimate_dte_and_soh(data: dict) -> dict:
     """
-    Very simple cloud-side digital twin for demo:
-    - Uses SOC & SoH to estimate remaining energy and DTE (km)
+    Cloud-side digital twin with MATLAB advanced modeling + Python fallback:
+    - Calls MATLAB for temperature-aware, aging-aware battery estimation if available
+    - Falls back to simple Python logic if MATLAB unavailable (graceful degradation)
+    - Returns DTE, remaining energy, SoH, and health category
     """
 
-    # Assumed battery pack specs (can mention in PPT)
+    # Extract battery data
+    voltage = float(data.get("voltage_V", 48.0))
+    current = float(data.get("current_A", 0.0))
+    soc = float(data.get("soc_percent", 50.0))
+    soh = float(data.get("soh_percent", 100.0))
+    temperature = float(data.get("temperature_C", 25.0))  # Celsius
+
+    # Use MATLAB if available; otherwise Python fallback
+    if MATLAB_AVAILABLE:
+        try:
+            matlab_result = estimate_with_matlab(voltage, current, soc, soh, temperature)
+            data["dte_km"] = round(matlab_result.get("dte_km", 0.0), 1)
+            data["soh_refined"] = round(matlab_result.get("soh_refined", soh), 1)
+            data["health_estimate"] = matlab_result.get("health_estimate", "Unknown")
+            data["remaining_energy_kwh"] = round(
+                matlab_result.get("remaining_energy_wh", 0.0) / 1000.0, 2
+            )
+            data["estimation_source"] = matlab_result.get("source", "matlab_engine")
+            app.logger.info(f"[DIGITAL TWIN] MATLAB estimation: DTE={data['dte_km']} km, "
+                           f"SoH={data['soh_refined']}%, Health={data['health_estimate']}")
+        except Exception as e:
+            app.logger.warning(f"[DIGITAL TWIN] MATLAB call failed, falling back to Python: {e}")
+            _estimate_dte_and_soh_python(data)
+    else:
+        _estimate_dte_and_soh_python(data)
+
+    # ensure battery_id present
+    if "battery_id" not in data or data.get('battery_id') is None:
+        data['battery_id'] = data.get('battery_id', 'unknown')
+
+    return data
+
+
+def _estimate_dte_and_soh_python(data: dict) -> None:
+    """
+    Python-only fallback for DTE/SoH estimation (simple logic, no MATLAB dependency)
+    Updates data dict in-place
+    """
+    # Assumed battery pack specs
     NOMINAL_PACK_VOLTAGE = 48.0    # Volts
     NOMINAL_CAPACITY_AH = 100.0    # Ah
     WH_PER_KM = 150.0              # Wh/km (vehicle consumption)
@@ -72,12 +121,12 @@ def estimate_dte_and_soh(data: dict) -> dict:
 
     data["remaining_energy_kwh"] = round(remaining_energy_wh / 1000.0, 2)
     data["dte_km"] = round(dte_km, 1)
+    data["soh_refined"] = round(soh, 1)
+    data["health_estimate"] = "Standard"
+    data["estimation_source"] = "python_fallback"
 
-    # ensure battery_id present
-    if "battery_id" not in data and data.get('battery_id') is None:
-        data['battery_id'] = data.get('battery_id', 'unknown')
-
-    return data
+    app.logger.info(f"[DIGITAL TWIN] Python fallback: DTE={data['dte_km']} km, "
+                   f"SoH={data['soh_refined']}%")
 
 # ----------------- ☁️ Cloud API -----------------
 
